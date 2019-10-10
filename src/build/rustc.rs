@@ -53,8 +53,8 @@ use std::env;
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 // Runs a single instance of rustc. Runs in-process.
 crate fn rustc(
@@ -87,7 +87,8 @@ crate fn rustc(
         config.clippy_preference
     };
     // Required for Clippy not to crash when running outside Cargo?
-    local_envs.entry("CARGO_MANIFEST_DIR".into())
+    local_envs
+        .entry("CARGO_MANIFEST_DIR".into())
         .or_insert_with(|| Some(build_dir.into()));
 
     let (guard, _) = env_lock.lock();
@@ -142,7 +143,10 @@ crate fn rustc(
     let analysis = analysis
         .map(|analysis| vec![analysis])
         .unwrap_or_else(Vec::new);
-    log::debug!("rustc: analysis read successfully?: {}", !analysis.is_empty());
+    log::debug!(
+        "rustc: analysis read successfully?: {}",
+        !analysis.is_empty()
+    );
 
     let cwd = cwd
         .unwrap_or_else(|| restore_env.get_old_cwd())
@@ -188,7 +192,8 @@ fn clippy_after_parse_callback(state: &mut rustc_driver::driver::CompileState<'_
             .expect(
                 "at this compilation stage \
                  the crate must be parsed",
-            ).span,
+            )
+            .span,
     );
     registry.args_hidden = Some(Vec::new());
 

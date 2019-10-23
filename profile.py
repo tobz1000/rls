@@ -12,17 +12,20 @@ TEST_PROJ_DIR = f"{RLS_DIR}/test-proj"
 OLD_VER = "nightly-2018-11-03"
 NEW_VER = "nightly-2018-11-06"
 
-massif = {
-    "command": "valgrind --tool=massif",
-    "finish": lambda proc, toolchain: proc.send_signal(signal.SIGINT)
-}
+class Massif:
+    command = "valgrind --tool=massif"
 
-heaptrack = {
-    "command": "heaptrack",
-    "finish": lambda proc, toolchain: kill_rls(toolchain)
-}
+    def finish(proc, toolchain):
+        proc.send_signal(signal.SIGINT)
 
-PROFILER = heaptrack
+class Heaptrack:
+    command = "heaptrack"
+
+    def finish(proc, toolchain):
+        kill_rls(toolchain)
+
+
+PROFILER = Massif
 
 def print_and_split(subproc_fn):
     def run(cmd, **kwargs):
@@ -54,7 +57,7 @@ def profile(toolchain, profiler):
     print(f"lib_path_env_var={lib_path_env_var}")
 
     proc = Popen(
-        f"{profiler['command']} {RLS_DIR}/rls-rustc-{toolchain} --cli",
+        f"{profiler.command} {RLS_DIR}/rls-rustc-{toolchain} --cli",
         env=env,
         cwd=TEST_PROJ_DIR,
         close_fds=False
@@ -62,7 +65,7 @@ def profile(toolchain, profiler):
 
     time.sleep(10)
 
-    profiler["finish"](proc, toolchain)
+    profiler.finish(proc, toolchain)
 
 def kill_rls(toolchain):
     current_proc = psutil.Process()

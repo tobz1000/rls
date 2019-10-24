@@ -9,8 +9,8 @@ import time
 RLS_DIR = os.path.dirname(os.path.realpath(__file__))
 TEST_PROJ_DIR = f"{RLS_DIR}/test-proj"
 
-OLD_VER = "nightly-2018-11-03"
-NEW_VER = "nightly-2018-11-06"
+OLD_VER = "leaktest-prev"
+NEW_VER = "leaktest"
 
 class Massif:
     command = "valgrind --tool=massif"

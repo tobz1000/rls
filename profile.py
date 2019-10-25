@@ -11,15 +11,19 @@ TEST_PROJ_DIR = f"{RLS_DIR}/test-proj"
 
 OLD_VER = "leaktest-prev"
 NEW_VER = "leaktest"
+RELEASE = False
+RUN_TIMEOUT_SECS = 10
 
 class Massif:
-    command = "valgrind --tool=massif"
+    def profile_cmd(toolchain):
+        return f"valgrind --tool=massif --massif-out-file={RLS_DIR}/{toolchain}.massif"
 
     def finish(proc, toolchain):
         proc.send_signal(signal.SIGINT)
 
 class Heaptrack:
-    command = "heaptrack"
+    def profile_cmd(toolchain):
+        return "heaptrack"
 
     def finish(proc, toolchain):
         kill_rls(toolchain)
@@ -38,12 +42,10 @@ check_call = print_and_split(subprocess.check_call)
 check_output = print_and_split(subprocess.check_output)
 Popen = print_and_split(subprocess.Popen)
 
-def build_and_copy(toolchain):
+def build(toolchain):
     check_call(
-        f"rustup run {toolchain} cargo build --no-default-features"
+        f"rustup run {toolchain} cargo build --target-dir={RLS_DIR}/target/{toolchain} --no-default-features{' --release' if RELEASE else ''}"
     )
-
-    check_call(f"cp {RLS_DIR}/target/debug/rls {RLS_DIR}/rls-rustc-{toolchain}")
 
 def profile(toolchain, profiler):
     toolchain_path = check_output(
@@ -56,14 +58,16 @@ def profile(toolchain, profiler):
 
     print(f"lib_path_env_var={lib_path_env_var}")
 
+    rls_cmd = f"{RLS_DIR}/target/{toolchain}/{'release' if RELEASE else 'debug'}/rls --cli"
+
     proc = Popen(
-        f"{profiler.command} {RLS_DIR}/rls-rustc-{toolchain} --cli",
+        f"{profiler.profile_cmd(toolchain)} {rls_cmd}",
         env=env,
         cwd=TEST_PROJ_DIR,
         close_fds=False
     )
 
-    time.sleep(10)
+    time.sleep(RUN_TIMEOUT_SECS)
 
     profiler.finish(proc, toolchain)
 
@@ -81,7 +85,7 @@ def kill_rls(toolchain):
     for proc in rls_procs:
         proc.kill()
 
-build_and_copy(OLD_VER)
-build_and_copy(NEW_VER)
+build(OLD_VER)
+build(NEW_VER)
 profile(OLD_VER, PROFILER)
 profile(NEW_VER, PROFILER)

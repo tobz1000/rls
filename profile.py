@@ -9,8 +9,8 @@ import time
 RLS_DIR = os.path.dirname(os.path.realpath(__file__))
 TEST_PROJ_DIR = f"{RLS_DIR}/test-proj"
 
-OLD_VER = "leaktest-prev"
-NEW_VER = "leaktest"
+OLD_VER = "leaktest-prev" # 757d6cc91a
+NEW_VER = "leaktest" #b6e8f9dbdc Remove the `alloc_jemalloc` crate
 RELEASE = False
 RUN_TIMEOUT_SECS = 10
 

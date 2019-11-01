@@ -9,14 +9,24 @@ import time
 RLS_DIR = os.path.dirname(os.path.realpath(__file__))
 TEST_PROJ_DIR = f"{RLS_DIR}/test-proj"
 
-OLD_VER = "leaktest-prev" # 757d6cc91a
-NEW_VER = "leaktest" #b6e8f9dbdc Remove the `alloc_jemalloc` crate
+GOOD_TOOLCHAIN = "leaktest-prev" # Rust #757d6cc91a
+BAD_TOOLCHAIN = "leaktest" # Rust #b6e8f9dbdc Remove the `alloc_jemalloc` crate
 RELEASE = False
 RUN_TIMEOUT_SECS = 10
 
 class Massif:
     def profile_cmd(toolchain):
         return f"valgrind --tool=massif --massif-out-file={RLS_DIR}/{toolchain}.massif"
+
+    def max_heap_bytes(toolchain):
+        with open(f"{RLS_DIR}/{toolchain}.massif") as profile_out:
+            for line in profile_out.readlines():
+                if line.startswith("mem_heap_B="):
+                    mem_heap_val = int(line[len("mem_heap_B="):])
+
+                elif line.strip() == "heap_tree=peak":
+                    return mem_heap_val
+
 
     def finish(proc, toolchain):
         proc.send_signal(signal.SIGINT)
@@ -56,20 +66,27 @@ def profile(toolchain, profiler):
     env = os.environ.copy()
     env["LD_LIBRARY_PATH"] = lib_path_env_var
 
-    print(f"lib_path_env_var={lib_path_env_var}")
+    print(f"> LD_LIBRARY_PATH={lib_path_env_var}")
 
     rls_cmd = f"{RLS_DIR}/target/{toolchain}/{'release' if RELEASE else 'debug'}/rls --cli"
 
-    proc = Popen(
-        f"{profiler.profile_cmd(toolchain)} {rls_cmd}",
-        env=env,
-        cwd=TEST_PROJ_DIR,
-        close_fds=False
-    )
+    with open(os.devnull, "w") as dev_null:
+        proc = Popen(
+            f"{profiler.profile_cmd(toolchain)} {rls_cmd}",
+            env=env,
+            cwd=TEST_PROJ_DIR,
+            close_fds=False,
+            stdout=dev_null,
+            stderr=dev_null,
+        )
 
-    time.sleep(RUN_TIMEOUT_SECS)
+        time.sleep(RUN_TIMEOUT_SECS)
 
-    profiler.finish(proc, toolchain)
+        profiler.finish(proc, toolchain)
+
+def summary(toolchain, profiler):
+    max_heap_mib = profiler.max_heap_bytes(toolchain) / (1024 ** 2)
+    print(f"{toolchain} max heap: {max_heap_mib:.1f}MiB")
 
 def kill_rls(toolchain):
     current_proc = psutil.Process()
@@ -79,13 +96,15 @@ def kill_rls(toolchain):
         if p.name() == f"rls-rustc-{toolchain}"
     ]
 
-    if len(rls_procs) != 1:
+    if len(rls_procs) > 1:
         raise Exception(f"Expected one RLS process for {toolchain}; found {len(rls_procs)}")
 
     for proc in rls_procs:
         proc.kill()
 
-build(OLD_VER)
-build(NEW_VER)
-profile(OLD_VER, PROFILER)
-profile(NEW_VER, PROFILER)
+build(GOOD_TOOLCHAIN)
+build(BAD_TOOLCHAIN)
+profile(GOOD_TOOLCHAIN, PROFILER)
+profile(BAD_TOOLCHAIN, PROFILER)
+summary(GOOD_TOOLCHAIN, PROFILER)
+summary(BAD_TOOLCHAIN, PROFILER)

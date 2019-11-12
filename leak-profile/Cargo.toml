@@ -1,0 +1,12 @@
+[package]
+name = "leak-profile"
+version = "0.1.0"
+authors = ["Toby Dimmick <tobydimmick@pm.me>"]
+edition = "2018"
+
+[dependencies]
+lazy_static = "*"
+command-macros = { version = "*", features = ["nightly"] }
+failure = "*"
+log = "*"
+pretty_env_logger = "*"

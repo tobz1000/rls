@@ -11,30 +11,38 @@ TEST_PROJ_DIR = f"{RLS_DIR}/test-proj"
 
 GOOD_TOOLCHAIN = "leaktest-prev" # Rust #757d6cc91a
 BAD_TOOLCHAIN = "leaktest" # Rust #b6e8f9dbdc Remove the `alloc_jemalloc` crate
-RELEASE = False
-RUN_TIMEOUT_SECS = 10
+RELEASE = True
+RUN_TIMEOUT_SECS = 15
 
 class Massif:
+    @staticmethod
     def profile_cmd(toolchain):
         return f"valgrind --tool=massif --massif-out-file={RLS_DIR}/{toolchain}.massif"
 
+    @staticmethod
     def max_heap_bytes(toolchain):
-        with open(f"{RLS_DIR}/{toolchain}.massif") as profile_out:
+        filepath = f"{RLS_DIR}/{toolchain}.massif"
+        with open(filepath) as profile_out:
             for line in profile_out.readlines():
                 if line.startswith("mem_heap_B="):
+                    # print(f"mem heap line: {line}")
                     mem_heap_val = int(line[len("mem_heap_B="):])
 
                 elif line.strip() == "heap_tree=peak":
                     return mem_heap_val
 
+        raise Exception(f"No max heap entry found in {filepath}")
 
+    @staticmethod
     def finish(proc, toolchain):
         proc.send_signal(signal.SIGINT)
 
 class Heaptrack:
+    @staticmethod
     def profile_cmd(toolchain):
         return "heaptrack"
 
+    @staticmethod
     def finish(proc, toolchain):
         kill_rls(toolchain)
 
@@ -72,12 +80,12 @@ def profile(toolchain, profiler):
 
     with open(os.devnull, "w") as dev_null:
         proc = Popen(
-            f"{profiler.profile_cmd(toolchain)} {rls_cmd}",
+            f"rustup run {toolchain} {profiler.profile_cmd(toolchain)} {rls_cmd}",
             env=env,
             cwd=TEST_PROJ_DIR,
             close_fds=False,
-            stdout=dev_null,
-            stderr=dev_null,
+            # stdout=dev_null,
+            # stderr=dev_null,
         )
 
         time.sleep(RUN_TIMEOUT_SECS)
@@ -102,9 +110,10 @@ def kill_rls(toolchain):
     for proc in rls_procs:
         proc.kill()
 
-build(GOOD_TOOLCHAIN)
-build(BAD_TOOLCHAIN)
-profile(GOOD_TOOLCHAIN, PROFILER)
-profile(BAD_TOOLCHAIN, PROFILER)
+check_call(f"cargo clean --manifest-path={TEST_PROJ_DIR}/Cargo.toml")
+# build(GOOD_TOOLCHAIN)
+# build(BAD_TOOLCHAIN)
+# profile(GOOD_TOOLCHAIN, PROFILER)
+# profile(BAD_TOOLCHAIN, PROFILER)
 summary(GOOD_TOOLCHAIN, PROFILER)
 summary(BAD_TOOLCHAIN, PROFILER)

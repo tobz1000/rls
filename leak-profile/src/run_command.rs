@@ -3,7 +3,7 @@ use std::fmt;
 use std::process::{Command, Output};
 use std::time::Duration;
 use std::thread::sleep;
-use log::trace;
+use log::debug;
 
 #[derive(Debug, Fail)]
 pub struct CommandFail {
@@ -47,7 +47,7 @@ impl fmt::Display for CommandFail {
 }
 
 pub fn run(mut command: Command) -> Result<String, CommandFail> {
-    trace!("run {:?}", &command);
+    debug!("run {:?}", &command);
 
     let output = map_io_err(command.output(), &command)?;
 
@@ -60,7 +60,7 @@ pub fn run_with_timeout(
     mut command: Command,
     timeout: Duration
 ) -> Result<Option<String>, CommandFail> {
-    trace!("run_with_timeout={}ms {:?}", timeout.as_millis(), &command);
+    debug!("run_with_timeout={}ms {:?}", timeout.as_millis(), &command);
 
     let mut child = map_io_err(command.spawn(), &command)?;
 

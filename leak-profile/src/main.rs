@@ -4,7 +4,7 @@ mod run_command;
 
 use command_macros::command;
 use failure::{Error, Fail};
-use log::{error, info};
+use log::{error, info, LevelFilter};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
@@ -27,7 +27,7 @@ struct MaxHeapNotFound {
 }
 
 fn main() {
-    pretty_env_logger::init();
+    pretty_env_logger::formatted_builder().filter_level(LevelFilter::Debug).init();
     match main_inner() {
         Ok(()) => {}
         Err(e) => error!("{}", e),
@@ -50,7 +50,6 @@ fn main_inner() -> Result<(), Error> {
 fn build(toolchain: &'static str) -> Result<(), Error> {
     info!("Building {}", toolchain);
 
-    // TODO: set cargo's working dir to RLS_DIR
     let mut build_cmd = command!(
         rustup run (toolchain)
         cargo build --target-dir=(RLS_DIR)/target/(toolchain)
@@ -77,7 +76,6 @@ fn profile(toolchain: &'static str) -> Result<(), Error> {
     profile_cmd.env("LD_LIBRARY_PATH", format!("{}/lib", toolchain_path.trim()));
     profile_cmd.current_dir(TEST_PROJ_DIR);
 
-    // TODO - allow err return code when killing process?
     run_with_timeout(profile_cmd, Duration::from_secs(RUN_TIMEOUT_SECS))?;
 
     Ok(())

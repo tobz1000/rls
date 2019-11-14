@@ -62,6 +62,7 @@ pub fn run_with_timeout(
 ) -> Result<Option<String>, CommandFail> {
     debug!("run_with_timeout={}ms {:?}", timeout.as_millis(), &command);
 
+    // TODO: capture stdout/stderr
     let mut child = map_io_err(command.spawn(), &command)?;
 
     sleep(timeout);
